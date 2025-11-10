@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kho Linh Kiện Điện Tử - Yêu Cầu Báo Giá</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+<body class="bg-gray-100">
+    <nav class="bg-gradient-to-r from-blue-900 to-orange-500 py-4 shadow-lg">
+        <div class="max-w-6xl mx-auto flex justify-between items-center px-4">
+            <div class="text-white text-xl font-bold">
+                <a href="index.html">Kho Linh Kiện Điện Tử</a>
+            </div>
+            <ul class="flex space-x-6">
+                <li><a href="index.html" class="text-white hover:text-yellow-300 transition-colors">Trang Chủ</a></li>
+                <li><a href="products.html" class="text-white hover:text-yellow-300 transition-colors">Sản Phẩm</a></li>
+                <li><a href="rfq.html" class="text-white hover:text-yellow-300 transition-colors">Yêu Cầu Báo Giá</a></li>
+            </ul>
+            <div class="flex items-center space-x-4">
+                <div class="bg-white text-orange-500 px-3 py-1 rounded-full cursor-pointer hover:bg-orange-100 transition-colors" onclick="window.location.href='cart.html'">
+                    Giỏ Hàng <span id="cartCount" class="bg-blue-900 text-white rounded-full px-2 py-0.5 text-sm">0</span>
+                </div>
+                <div id="loginIcon" class="bg-white text-blue-900 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 transition-colors" onclick="openLogin()">Đăng Nhập</div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="rfq max-w-6xl mx-auto py-8">
+        <h2 class="text-2xl font-bold text-center mb-6">Yêu Cầu Báo Giá (RFQ)</h2>
+        <div id="loyaltyInfo" class="text-center mb-4 text-green-600 font-semibold hidden"></div>
+        <p class="text-center mb-6">Gửi yêu cầu báo giá chi tiết cho linh kiện bạn cần</p>
+        <form id="rfqForm" action="php/submit_rfq.php" method="POST" class="bg-white p-6 rounded-lg shadow max-w-lg mx-auto space-y-4">
+            <input type="text" name="companyName" placeholder="Tên công ty" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+            <input type="email" name="email" placeholder="Email liên hệ" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+            <div id="rfqItems" class="space-y-4">
+                <div class="rfq-item flex gap-2 items-center border-b pb-2">
+                    <input type="text" name="components[]" placeholder="Tên linh kiện" class="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+                    <input type="number" name="quantities[]" placeholder="Số lượng" class="w-24 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" min="1" required>
+                    <button type="button" onclick="this.parentElement.remove()" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Xóa</button>
+                </div>
+            </div>
+            <button type="button" onclick="addRfqItem()" class="w-full bg-blue-900 text-white px-4 py-2 rounded-lg hover:bg-orange-500 transition-colors">Thêm linh kiện</button>
+            <select name="deliveryTime" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+                <option value="" disabled selected>Thời gian giao hàng mong muốn</option>
+                <option value="1week">Trong vòng 1 tuần</option>
+                <option value="2weeks">Trong vòng 2 tuần</option>
+                <option value="1month">Trong vòng 1 tháng</option>
+                <option value="custom">Tùy chỉnh (vui lòng ghi rõ)</option>
+            </select>
+            <textarea name="requirements" placeholder="Yêu cầu kỹ thuật hoặc ghi chú thêm" rows="5" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900"></textarea>
+            <button type="submit" class="w-full py-3 bg-blue-900 text-white rounded-lg hover:bg-orange-500 transition-colors">Gửi Yêu Cầu Báo Giá</button>
+        </form>
+    </section>
+
+    <footer class="bg-blue-900 text-white text-center py-4 mt-8">
+        <p>© 2025 Kho Linh Kiện Điện Tử. All rights reserved.</p>
+    </footer>
+
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg w-full max-w-md shadow-xl">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-6 text-center text-blue-900">Đăng Nhập</h2>
+            <form id="authForm" method="POST" class="space-y-4">
+                <input type="email" name="email" placeholder="Email" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+                <input type="password" name="password" placeholder="Mật khẩu" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+                <input id="companyNameInput" type="text" name="companyName" placeholder="Tên công ty" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900 hidden">
+                <button type="submit" id="submitButton" class="w-full py-3 bg-blue-900 text-white rounded-lg hover:bg-orange-500 transition-colors">Đăng Nhập</button>
+            </form>
+            <button id="toggleAuth" class="w-full text-blue-900 mt-4 hover:text-orange-500 hover:underline text-center">Chưa có tài khoản? Đăng ký</button>
+            <button class="w-full py-2 bg-blue-900 text-white rounded-lg mt-4 hover:bg-orange-500 transition-colors" onclick="closeLogin()">Đóng</button>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let loyaltyDiscount = 0;
+
+        // Check session and loyalty status on page load
+        fetch('php/check_session.php')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Session check:', data);
+                if (data.loggedIn) {
+                    currentUser = data.user;
+                    document.getElementById('loginIcon').textContent = 'Cổng Khách Hàng';
+                    document.getElementById('loginIcon').onclick = () => window.location.href = 'portal.html';
+                    document.querySelector('input[name="companyName"]').value = currentUser.company_name;
+                    document.querySelector('input[name="email"]').value = currentUser.email;
+                    fetch('php/get_loyalty_status.php')
+                        .then(response => {
+                            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                            return response.json();
+                        })
+                        .then(loyalty => {
+                            console.log('Loyalty status:', loyalty);
+                            loyaltyDiscount = parseFloat(loyalty.discount_rate) || 0;
+                            if (loyaltyDiscount > 0) {
+                                document.getElementById('loyaltyInfo').textContent = `Bạn là khách hàng thân thiết! Nhận ưu đãi giảm ${loyaltyDiscount}% trên giá sản phẩm.`;
+                                document.getElementById('loyaltyInfo').classList.remove('hidden');
+                            }
+                        })
+                        .catch(error => console.error('Loyalty status error:', error));
+                } else {
+                    document.getElementById('loginIcon').onclick = openLogin;
+                }
+                fetch('php/cart_get.php')
+                    .then(response => {
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        return response.json();
+                    })
+                    .then(cart => {
+                        console.log('Cart data:', cart);
+                        document.getElementById('cartCount').textContent = cart.reduce((sum, item) => sum + parseInt(item.quantity), 0);
+                    })
+                    .catch(error => console.error('Cart fetch error:', error));
+            })
+            .catch(error => console.error('Session check error:', error));
+
+        // Add RFQ item
+        function addRfqItem() {
+            const rfqItems = document.getElementById('rfqItems');
+            const newItem = document.createElement('div');
+            newItem.className = 'rfq-item flex gap-2 items-center border-b pb-2';
+            newItem.innerHTML = `
+                <input type="text" name="components[]" placeholder="Tên linh kiện" class="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+                <input type="number" name="quantities[]" placeholder="Số lượng" class="w-24 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" min="1" required>
+                <button type="button" onclick="this.parentElement.remove()" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Xóa</button>
+            `;
+            rfqItems.appendChild(newItem);
+        }
+
+        // Open login modal
+        function openLogin() {
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('loginModal').classList.add('flex');
+            resetModal();
+        }
+
+        // Close login modal
+        function closeLogin() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('loginModal').classList.remove('flex');
+            resetModal();
+        }
+
+        // Reset modal to login state
+        function resetModal() {
+            const modalTitle = document.getElementById('modalTitle');
+            const authForm = document.getElementById('authForm');
+            const companyNameInput = document.getElementById('companyNameInput');
+            const submitButton = document.getElementById('submitButton');
+            const toggleAuth = document.getElementById('toggleAuth');
+            modalTitle.textContent = 'Đăng Nhập';
+            authForm.action = 'php/login.php';
+            companyNameInput.classList.add('hidden');
+            submitButton.textContent = 'Đăng Nhập';
+            toggleAuth.textContent = 'Chưa có tài khoản? Đăng ký';
+        }
+
+        // Toggle between login and register
+        document.getElementById('toggleAuth').addEventListener('click', () => {
+            const modalTitle = document.getElementById('modalTitle');
+            const authForm = document.getElementById('authForm');
+            const companyNameInput = document.getElementById('companyNameInput');
+            const submitButton = document.getElementById('submitButton');
+            const toggleAuth = document.getElementById('toggleAuth');
+            const isLogin = modalTitle.textContent === 'Đăng Nhập';
+            modalTitle.textContent = isLogin ? 'Đăng Ký' : 'Đăng Nhập';
+            authForm.action = isLogin ? 'php/register.php' : 'php/login.php';
+            companyNameInput.classList.toggle('hidden', !isLogin);
+            submitButton.textContent = isLogin ? 'Đăng Ký' : 'Đăng Nhập';
+            toggleAuth.textContent = isLogin ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký';
+        });
+
+        // Handle login form submission
+        document.getElementById('authForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            fetch(e.target.action, { method: 'POST', body: formData })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Server response:', data);
+                    Toastify({
+                        text: data.message,
+                        duration: 3000,
+                        gravity: "top",
+                        position: "right",
+                        style: { background: data.success ? "#2ecc71" : "#e74c3c" }
+                    }).showToast();
+                    if (data.success) {
+                        closeLogin();
+                        if (e.target.action.includes('login')) window.location.href = 'portal.html';
+                        else window.location.href = 'rfq.html';
+                    }
+                })
+                .catch(error => console.error('Form submission error:', error));
+        });
+
+        // Handle RFQ form submission
+        document.getElementById('rfqForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!currentUser) {
+                openLogin();
+                return;
+            }
+            const formData = new FormData(e.target);
+            formData.append('user_id', currentUser.id);
+            fetch('php/submit_rfq.php', { method: 'POST', body: formData })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('RFQ submission response:', data);
+                    Toastify({
+                        text: data.message,
+                        duration: 3000,
+                        gravity: "top",
+                        position: "right",
+                        style: { background: data.success ? "#2ecc71" : "#e74c3c" }
+                    }).showToast();
+                    if (data.success) {
+                        e.target.reset();
+                        document.getElementById('rfqItems').innerHTML = `
+                            <div class="rfq-item flex gap-2 items-center border-b pb-2">
+                                <input type="text" name="components[]" placeholder="Tên linh kiện" class="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+                                <input type="number" name="quantities[]" placeholder="Số lượng" class="w-24 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" min="1" required>
+                                <button type="button" onclick="this.parentElement.remove()" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">Xóa</button>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => console.error('RFQ submission error:', error));
+        });
+    </script>
+</body>
+</html>

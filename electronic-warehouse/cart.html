@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kho Linh Kiện Điện Tử - Giỏ Hàng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-gradient-to-r from-blue-900 to-orange-500 py-4 shadow-lg">
+        <div class="max-w-6xl mx-auto flex justify-between items-center px-4">
+            <div class="text-white text-xl font-bold">
+                <a href="index.html">Kho Linh Kiện Điện Tử</a>
+            </div>
+            <ul class="flex space-x-6">
+                <li><a href="index.html" class="text-white hover:text-yellow-300 transition-colors">Trang Chủ</a></li>
+                <li><a href="products.html" class="text-white hover:text-yellow-300 transition-colors">Sản Phẩm</a></li>
+                <li><a href="rfq.html" class="text-white hover:text-yellow-300 transition-colors">Yêu Cầu Báo Giá</a></li>
+            </ul>
+            <div class="flex items-center space-x-4">
+                <div class="bg-white text-orange-500 px-3 py-1 rounded-full cursor-pointer hover:bg-orange-100 transition-colors" onclick="window.location.href='cart.html'">
+                    Giỏ Hàng <span id="cartCount" class="bg-blue-900 text-white rounded-full px-2 py-0.5 text-sm">0</span>
+                </div>
+                <div id="loginIcon" class="bg-white text-blue-900 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 transition-colors" onclick="openLogin()">Đăng Nhập</div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="max-w-6xl mx-auto py-8">
+        <h2 class="text-3xl font-bold text-center mb-8 text-blue-900">Giỏ Hàng Của Bạn</h2>
+        <div id="cartItems" class="bg-white p-6 rounded-lg shadow-lg mb-6"></div>
+        <div id="checkoutSection" class="bg-white p-6 rounded-lg shadow-lg hidden">
+            <h3 class="text-xl font-semibold mb-4">Thanh Toán</h3>
+            <p class="mb-4">Tổng cộng: $<span id="totalPrice">0.00</span></p>
+            <select id="paymentMethod" class="w-full p-3 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-900">
+                <option value="bank">Chuyển khoản ngân hàng</option>
+                <option value="cash">Thanh toán tiền mặt khi nhận hàng</option>
+            </select>
+            <button id="checkoutButton" class="w-full py-3 bg-blue-900 text-white rounded-lg hover:bg-orange-500 transition-colors">Hoàn tất Mua Hàng</button>
+        </div>
+        <button id="clearCart" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors hidden">Xóa Tất Cả</button>
+    </section>
+
+    <footer class="bg-blue-900 text-white text-center py-4 mt-8">
+        <p>© 2025 Kho Linh Kiện Điện Tử. All rights reserved.</p>
+    </footer>
+
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg w-full max-w-md shadow-xl">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-6 text-center text-blue-900">Đăng Nhập</h2>
+            <form id="authForm" method="POST" class="space-y-4">
+                <input type="email" name="email" placeholder="Email" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+                <input type="password" name="password" placeholder="Mật khẩu" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900" required>
+                <input id="companyNameInput" type="text" name="companyName" placeholder="Tên công ty" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900 hidden">
+                <button type="submit" id="submitButton" class="w-full py-3 bg-blue-900 text-white rounded-lg hover:bg-orange-500 transition-colors">Đăng Nhập</button>
+            </form>
+            <button id="toggleAuth" class="w-full text-blue-900 mt-4 hover:text-orange-500 hover:underline text-center">Chưa có tài khoản? Đăng ký</button>
+            <button class="w-full py-2 bg-blue-900 text-white rounded-lg mt-4 hover:bg-orange-500 transition-colors" onclick="closeLogin()">Đóng</button>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        // Check session and load cart
+        fetch('php/check_session.php')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.loggedIn) {
+                    currentUser = data.user;
+                    document.getElementById('loginIcon').textContent = 'Cổng Khách Hàng';
+                    document.getElementById('loginIcon').onclick = () => window.location.href = 'portal.html';
+                    loadCart();
+                } else {
+                    window.location.href = 'index.html';
+                }
+                updateRealTimeData();
+            })
+            .catch(error => console.error('Session check error:', error));
+
+        // Load cart items with total price
+        function loadCart() {
+            if (!currentUser) {
+                document.getElementById('cartItems').innerHTML = '<p>Vui lòng đăng nhập để xem giỏ hàng.</p>';
+                return;
+            }
+            fetch(`php/cart_get.php?user_id=${currentUser.id}`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(cart => {
+                    const cartItems = document.getElementById('cartItems');
+                    const clearCart = document.getElementById('clearCart');
+                    const checkoutSection = document.getElementById('checkoutSection');
+                    const totalPrice = document.getElementById('totalPrice');
+                    if (cart.length > 0) {
+                        cartItems.innerHTML = cart.map(item => `
+                            <div class="flex justify-between items-center mb-4 p-4 border-b">
+                                <span class="text-lg">${item.product_name || `Sản phẩm #${item.product_id}`} (x${item.quantity})</span>
+                                <span class="text-lg font-semibold">$${item.price ? (item.price * item.quantity).toFixed(2) : '0.00'}</span>
+                            </div>
+                        `).join('');
+                        clearCart.classList.remove('hidden');
+                        checkoutSection.classList.remove('hidden');
+                        totalPrice.textContent = cart.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0).toFixed(2);
+                    } else {
+                        cartItems.textContent = 'Giỏ hàng trống.';
+                        clearCart.classList.add('hidden');
+                        checkoutSection.classList.add('hidden');
+                        totalPrice.textContent = '0.00';
+                    }
+                })
+                .catch(error => console.error('Load cart error:', error));
+        }
+
+        // Clear cart
+        document.getElementById('clearCart').addEventListener('click', () => {
+            fetch('php/cart_clear.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `user_id=${currentUser.id}`
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                Toastify({
+                    text: data.message,
+                    duration: 3000,
+                    gravity: "top",
+                    position: "right",
+                    style: { background: data.success ? "#2ecc71" : "#e74c3c" }
+                }).showToast();
+                if (data.success) loadCart();
+            })
+            .catch(error => console.error('Clear cart error:', error));
+        });
+
+        // Checkout
+        document.getElementById('checkoutButton').addEventListener('click', () => {
+            if (!currentUser) {
+                openLogin();
+                return;
+            }
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            fetch('php/checkout.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `user_id=${currentUser.id}&payment_method=${paymentMethod}`
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                Toastify({
+                    text: data.message,
+                    duration: 3000,
+                    gravity: "top",
+                    position: "right",
+                    style: { background: data.success ? "#2ecc71" : "#e74c3c" }
+                }).showToast();
+                if (data.success) {
+                    loadCart();
+                    window.location.href = 'portal.html';
+                }
+            })
+            .catch(error => console.error('Checkout error:', error));
+        });
+
+        // Update real-time data
+        function updateRealTimeData() {
+            if (currentUser) {
+                fetch(`php/cart_get.php?user_id=${currentUser.id}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        return response.json();
+                    })
+                    .then(cart => {
+                        document.getElementById('cartCount').textContent = cart.reduce((sum, item) => sum + parseInt(item.quantity || 0), 0);
+                    })
+                    .catch(error => console.error('Cart fetch error:', error));
+            }
+        }
+        setInterval(updateRealTimeData, 5000); // Cập nhật mỗi 5 giây
+
+        // Login modal functions
+        function openLogin() { document.getElementById('loginModal').classList.replace('hidden', 'flex'); resetModal(); }
+        function closeLogin() { document.getElementById('loginModal').classList.replace('flex', 'hidden'); resetModal(); }
+        function resetModal() {
+            const modalTitle = document.getElementById('modalTitle');
+            const authForm = document.getElementById('authForm');
+            const companyNameInput = document.getElementById('companyNameInput');
+            const submitButton = document.getElementById('submitButton');
+            const toggleAuth = document.getElementById('toggleAuth');
+            modalTitle.textContent = 'Đăng Nhập';
+            authForm.action = 'php/login.php';
+            companyNameInput.classList.add('hidden');
+            submitButton.textContent = 'Đăng Nhập';
+            toggleAuth.textContent = 'Chưa có tài khoản? Đăng ký';
+        }
+        document.getElementById('toggleAuth').addEventListener('click', () => {
+            const modalTitle = document.getElementById('modalTitle');
+            const authForm = document.getElementById('authForm');
+            const companyNameInput = document.getElementById('companyNameInput');
+            const submitButton = document.getElementById('submitButton');
+            const toggleAuth = document.getElementById('toggleAuth');
+            const isLogin = modalTitle.textContent === 'Đăng Nhập';
+            modalTitle.textContent = isLogin ? 'Đăng Ký' : 'Đăng Nhập';
+            authForm.action = isLogin ? 'php/register.php' : 'php/login.php';
+            companyNameInput.classList.toggle('hidden', !isLogin);
+            submitButton.textContent = isLogin ? 'Đăng Ký' : 'Đăng Nhập';
+            toggleAuth.textContent = isLogin ? 'Đã có tài khoản? Đăng nhập' : 'Chưa có tài khoản? Đăng ký';
+        });
+        document.getElementById('authForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            fetch(e.target.action, { method: 'POST', body: formData })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    Toastify({
+                        text: data.message,
+                        duration: 3000,
+                        gravity: "top",
+                        position: "right",
+                        style: { background: data.success ? "#2ecc71" : "#e74c3c" }
+                    }).showToast();
+                    if (data.success) {
+                        closeLogin();
+                        if (e.target.action.includes('login')) window.location.href = 'portal.html';
+                        else window.location.href = 'rfq.html';
+                    }
+                })
+                .catch(error => console.error('Form submission error:', error));
+        });
+    </script>
+</body>
+</html>

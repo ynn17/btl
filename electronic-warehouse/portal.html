@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kho Linh Kiện Điện Tử - Cổng Khách Hàng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-gradient-to-r from-blue-900 to-orange-500 py-4 shadow-lg">
+        <div class="max-w-6xl mx-auto flex justify-between items-center px-4">
+            <div class="text-white text-xl font-bold">
+                <a href="index.html">Kho Linh Kiện Điện Tử</a>
+            </div>
+            <ul class="flex space-x-6">
+                <li><a href="index.html" class="text-white hover:text-yellow-300 transition-colors">Trang Chủ</a></li>
+                <li><a href="products.html" class="text-white hover:text-yellow-300 transition-colors">Sản Phẩm</a></li>
+                <li><a href="rfq.html" class="text-white hover:text-yellow-300 transition-colors">Yêu Cầu Báo Giá</a></li>
+            </ul>
+            <div class="flex items-center space-x-4">
+                <div class="bg-white text-orange-500 px-3 py-1 rounded-full cursor-pointer hover:bg-orange-100 transition-colors" onclick="window.location.href='cart.html'">
+                    Giỏ Hàng <span id="cartCount" class="bg-blue-900 text-white rounded-full px-2 py-0.5 text-sm">0</span>
+                </div>
+                <div id="loginIcon" class="bg-white text-blue-900 px-3 py-1 rounded-full cursor-pointer hover:bg-blue-100 transition-colors" onclick="logout()">Đăng Xuất</div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="max-w-6xl mx-auto py-8">
+        <h2 class="text-3xl font-bold text-center mb-8 text-blue-900">Cổng Khách Hàng Doanh Nghiệp</h2>
+        <div class="tabs mb-6">
+            <button class="tab active bg-blue-900 text-white px-4 py-2 rounded-t-lg" onclick="openTab('profile')">Thông Tin</button>
+            <button class="tab bg-blue-900 text-white px-4 py-2 rounded-t-lg" onclick="openTab('orders')">Đơn Hàng</button>
+            <button class="tab bg-blue-900 text-white px-4 py-2 rounded-t-lg" onclick="openTab('history')">Lịch Sử Mua Hàng</button>
+            <button class="tab bg-blue-900 text-white px-4 py-2 rounded-t-lg" onclick="openTab('contracts')">Hợp Đồng Cung Ứng</button>
+        </div>
+        <div id="profile" class="tab-content">
+            <div id="userInfo" class="bg-white p-6 rounded-lg shadow-lg text-center mb-6"></div>
+            <div id="loyaltyInfo" class="text-center mb-4 text-green-600 font-semibold hidden"></div>
+            <a href="rfq.html" class="block text-center bg-blue-900 text-white px-6 py-3 rounded-lg hover:bg-orange-500 transition-colors max-w-xs mx-auto">Tạo Yêu Cầu Báo Giá Mới</a>
+        </div>
+        <div id="orders" class="tab-content hidden">
+            <div id="orderList" class="bg-white p-6 rounded-lg shadow-lg"></div>
+        </div>
+        <div id="history" class="tab-content hidden">
+            <div id="historyList" class="bg-white p-6 rounded-lg shadow-lg"></div>
+        </div>
+        <div id="contracts" class="tab-content hidden">
+            <div id="contractList" class="bg-white p-6 rounded-lg shadow-lg"></div>
+        </div>
+    </section>
+
+    <footer class="bg-blue-900 text-white text-center py-4 mt-8">
+        <p>© 2025 Kho Linh Kiện Điện Tử. All rights reserved.</p>
+    </footer>
+
+    <script>
+        let currentUser = null;
+        let loyaltyDiscount = 0;
+
+        // Check session and load data
+        fetch('php/check_session.php')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if (data.loggedIn) {
+                    currentUser = data.user;
+                    document.getElementById('userInfo').textContent = `Chào ${currentUser.company_name}! Email: ${currentUser.email}`;
+                    fetch('php/get_loyalty_status.php')
+                        .then(response => {
+                            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                            return response.json();
+                        })
+                        .then(loyalty => {
+                            loyaltyDiscount = parseFloat(loyalty.discount_rate) || 0;
+                            if (loyaltyDiscount > 0) {
+                                document.getElementById('loyaltyInfo').textContent = `Bạn là khách hàng thân thiết! Nhận ưu đãi giảm ${loyaltyDiscount}% trên giá sản phẩm.`;
+                                document.getElementById('loyaltyInfo').classList.remove('hidden');
+                            }
+                        })
+                        .catch(error => console.error('Loyalty status error:', error));
+                    loadOrders();
+                    loadHistory();
+                    loadContracts();
+                } else {
+                    window.location.href = 'index.html';
+                }
+                updateRealTimeData();
+            })
+            .catch(error => console.error('Session check error:', error));
+
+        // Load orders
+        function loadOrders() {
+            fetch('php/get_orders.php?user_id=' + currentUser.id)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(orders => {
+                    const orderList = document.getElementById('orderList');
+                    orderList.innerHTML = orders.map(order => `
+                        <div class="mb-4 p-4 border-b">
+                            <p>Đơn hàng #${order.id}: ${typeof order.total_price === 'number' ? order.total_price.toFixed(2) : '0.00'} VND - Ngày: ${order.order_date}</p>
+                        </div>
+                    `).join('');
+                })
+                .catch(error => console.error('Orders fetch error:', error));
+        }
+
+        // Load history
+        function loadHistory() {
+            fetch('php/get_purchase_history.php?user_id=' + currentUser.id)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(history => {
+                    const historyList = document.getElementById('historyList');
+                    historyList.innerHTML = history.map(item => `
+                        <div class="mb-4 p-4 border-b">
+                            <p>${item.product_name} - Số lượng: ${item.quantity} - Giá: $${typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}</p>
+                        </div>
+                    `).join('');
+                })
+                .catch(error => console.error('History fetch error:', error));
+        }
+
+        // Load contracts
+        function loadContracts() {
+            fetch('php/get_contracts.php?user_id=' + currentUser.id)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(contracts => {
+                    const contractList = document.getElementById('contractList');
+                    contractList.innerHTML = contracts.map(contract => `
+                        <div class="mb-4 p-4 border-b">
+                            <p>Hợp đồng: ${contract.details}</p>
+                        </div>
+                    `).join('');
+                })
+                .catch(error => console.error('Contracts fetch error:', error));
+        }
+
+        // Tab navigation
+        function openTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.querySelector(`.tab[onclick="openTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(tabName).classList.remove('hidden');
+        }
+
+        // Logout
+        function logout() {
+            fetch('php/logout.php', { method: 'POST' })
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    Toastify({
+                        text: data.message,
+                        duration: 3000,
+                        gravity: "top",
+                        position: "right",
+                        style: { background: data.success ? "#2ecc71" : "#e74c3c" }
+                    }).showToast();
+                    if (data.success) window.location.href = 'products.html';
+                })
+                .catch(error => console.error('Logout error:', error));
+        }
+
+        // Update real-time data
+        function updateRealTimeData() {
+            fetch('php/cart_get.php')
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(cart => {
+                    document.getElementById('cartCount').textContent = cart.reduce((sum, item) => sum + parseInt(item.quantity), 0);
+                })
+                .catch(error => console.error('Cart fetch error:', error));
+        }
+        setInterval(updateRealTimeData, 5000); // Cập nhật mỗi 5 giây
+    </script>
+</body>
+</html>
